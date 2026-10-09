@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="AnywearNumbra/AnywearNumbra.csproj">
+    <Platform Project="x64" />
+  </Project>
+  <Project Path="AnywearNumbra.Core/AnywearNumbra.Core.csproj" />
+  <Project Path="AnywearNumbra.Tests/AnywearNumbra.Tests.csproj" />
+</Solution>
