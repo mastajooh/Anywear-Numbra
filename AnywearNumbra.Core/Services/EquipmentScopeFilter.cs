@@ -425,7 +425,10 @@ public static class EquipmentScopeFilter
             return true;
         }
 
-        return false;
+                // Values created in code (not parsed) only convert to their exact CLR type, so fall back to the JSON text.
+        return v.GetValueKind() == System.Text.Json.JsonValueKind.Number
+         && long.TryParse(v.ToJsonString(), System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out value);
     }
 
     private static bool ScalarEquals(JsonNode? a, JsonNode? b)
