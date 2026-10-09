@@ -95,6 +95,35 @@ public sealed class TerritoryInfoProvider
         }
     }
 
+    private List<byte>? _stains;
+
+    /// <summary> Dye ids Glamourer accepts: Stain rows with a color and a name (same filter as Penumbra.GameData's DictStain). </summary>
+    public IReadOnlyList<byte> Stains
+    {
+        get
+        {
+            if (_stains is not null)
+                return _stains;
+
+            var list = new List<byte>();
+            try
+            {
+                foreach (var row in _data.GetExcelSheet<Stain>())
+                {
+                    if (row.RowId is > 0 and <= byte.MaxValue && row.Color != 0 && row.Name.ByteLength > 0)
+                        list.Add((byte)row.RowId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.Warning(ex, "Could not read the Stain sheet.");
+            }
+
+            _stains = list;
+            return _stains;
+        }
+    }
+
     public string ContentTypeName(uint contentTypeId)
         => ContentTypes.FirstOrDefault(t => t.Id == contentTypeId).Name ?? $"Duty type #{contentTypeId}";
 

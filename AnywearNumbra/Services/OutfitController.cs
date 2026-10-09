@@ -26,6 +26,7 @@ public sealed class OutfitController : IDisposable
     private readonly IRandomSource _random = SharedRandomSource.Instance;
 
     private JsonObject? _verifyState;
+    private (string Directory, OutfitSource Source)? _lastModSource;
     private DateTime _verifyDueAt;
     private int _verifyObjectIndex;
 
@@ -98,7 +99,8 @@ public sealed class OutfitController : IDisposable
         if (outfit is null)
             return Report(false, $"No mod outfit applied: {reason}");
 
-        return ApplyOutfit(OutfitSource.FromMod(outfit), $"{trigger} — {reason}", outfit.ModDirectory);
+        var source = OutfitSource.FromMod(outfit, ModDesignOptions.FromSettings(Settings, _territories.Stains, _random));
+        return ApplyOutfit(source, $"{trigger} — {reason}", outfit.ModDirectory);
     }
 
     /// <summary> Reload designs from Glamourer and add newly found ones (not eligible) to the outfit list. </summary>
@@ -192,13 +194,21 @@ public sealed class OutfitController : IDisposable
     {
         if (Settings.LastAppliedModDirectory.Length > 0)
         {
+            // Same outfit with the same dyes, when it was applied this session.
+            if (_lastModSource is { } last && last.Directory == Settings.LastAppliedModDirectory)
+            {
+                ApplyOutfit(last.Source, "Manual reapply", last.Directory);
+                return;
+            }
+
             if (ModOutfits.Count == 0)
                 RescanMods();
             var mod = ModOutfits.FirstOrDefault(o => o.ModDirectory == Settings.LastAppliedModDirectory);
             if (mod is null)
                 Report(false, $"The mod '{Settings.LastAppliedDesignName}' is no longer enabled or no longer changes armor.");
             else
-                ApplyOutfit(OutfitSource.FromMod(mod), "Manual reapply", mod.ModDirectory);
+                ApplyOutfit(OutfitSource.FromMod(mod, ModDesignOptions.FromSettings(Settings, _territories.Stains, _random)), "Manual reapply",
+                    mod.ModDirectory);
             return;
         }
 
@@ -271,6 +281,7 @@ public sealed class OutfitController : IDisposable
 
         if (modDirectory is not null)
         {
+            _lastModSource                   = (modDirectory, source);
             Settings.LastAppliedModDirectory = modDirectory;
             Settings.LastAppliedDesignId     = Guid.Empty;
             Settings.LastAppliedDesignName   = name;

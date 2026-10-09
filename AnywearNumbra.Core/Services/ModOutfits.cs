@@ -12,8 +12,43 @@ public readonly record struct OutfitSource(Guid DesignId, JsonObject? Data, stri
     public static OutfitSource FromDesign(Guid designId, string name)
         => new(designId, null, name);
 
-    public static OutfitSource FromMod(ModOutfit outfit)
-        => new(Guid.Empty, ModOutfitBuilder.ToDesign(outfit), outfit.ModName);
+    public static OutfitSource FromMod(ModOutfit outfit, ModDesignOptions? options = null)
+        => new(Guid.Empty, ModOutfitBuilder.ToDesign(outfit, options), outfit.ModName);
+}
+
+/// <summary> How a mod outfit becomes a design: which missing slots to empty and how to dye it. </summary>
+public sealed record ModDesignOptions(
+    IReadOnlyCollection<string> ClearSlots,
+    RandomDyeMode DyeMode,
+    bool DyeSecondChannel,
+    IReadOnlyList<byte> Stains,
+    IRandomSource Random)
+{
+    /// <summary> Slots to empty, from settings. Rings cover both ring slots. </summary>
+    public static IReadOnlyCollection<string> ClearSlotsFrom(AnywearSettings s)
+    {
+        var slots = new List<string>();
+        if (s.ModClearHead)
+            slots.Add("Head");
+        if (s.ModClearHands)
+            slots.Add("Hands");
+        if (s.ModClearEars)
+            slots.Add("Ears");
+        if (s.ModClearNeck)
+            slots.Add("Neck");
+        if (s.ModClearWrists)
+            slots.Add("Wrists");
+        if (s.ModClearRings)
+        {
+            slots.Add("RFinger");
+            slots.Add("LFinger");
+        }
+
+        return slots;
+    }
+
+    public static ModDesignOptions FromSettings(AnywearSettings s, IReadOnlyList<byte> stains, IRandomSource random)
+        => new(ClearSlotsFrom(s), s.ModDyeMode, s.ModDyeSecondChannel, stains, random);
 }
 
 /// <summary> The armor a single Penumbra mod changes, as Glamourer slot name to Glamourer (custom) item id. </summary>
@@ -70,12 +105,71 @@ public static class ModOutfitBuilder
         return new ModOutfit(modDirectory, modName, slots);
     }
 
-    /// <summary> A minimal Glamourer-shaped design: only the outfit's slots, items only (dyes stay as they are). </summary>
-    public static JsonObject ToDesign(ModOutfit outfit)
+    /// <summary> Slots that may be emptied when a mod does not change them. Body, legs and feet never are. </summary>
+    public static readonly IReadOnlyList<string> ClearableSlots = ["Head", "Hands", "Ears", "Neck", "Wrists", "RFinger", "LFinger"];
+
+    /// <summary>
+    /// Glamourer's "Nothing" item for an armor slot: ItemManager.NothingId(slot) = uint.MaxValue - 128 - (uint)slot.ToSlot(),
+    /// with EquipSlot values Head 3, Body 4, Hands 5, Legs 7, Feet 8, Ears 9, Neck 10, Wrists 11, RFinger 12 (LFinger maps to RFinger).
+    /// </summary>
+    public static ulong NothingItemId(string slot)
+    {
+        uint slotValue = slot switch
+        {
+            "Head"                 => 3,
+            "Body"                 => 4,
+            "Hands"                => 5,
+            "Legs"                 => 7,
+            "Feet"                 => 8,
+            "Ears"                 => 9,
+            "Neck"                 => 10,
+            "Wrists"               => 11,
+            "RFinger" or "LFinger" => 12,
+            _                      => throw new ArgumentOutOfRangeException(nameof(slot), slot, "Not an armor slot."),
+        };
+        return uint.MaxValue - 128u - slotValue;
+    }
+
+    /// <summary>
+    /// A minimal Glamourer-shaped design: the outfit's slots (items, plus random dyes if enabled), and explicit
+    /// "Nothing" for chosen slots the mod does not change. Everything else is left out, i.e. stays as it is.
+    /// </summary>
+    public static JsonObject ToDesign(ModOutfit outfit, ModDesignOptions? options = null)
     {
         var equipment = new JsonObject();
+        var stains    = options?.Stains.Where(s => s != 0).ToList() ?? new List<byte>();
+        var dye       = options is { DyeMode: not RandomDyeMode.Off } && stains.Count > 0;
+        byte outfitDye1 = 0, outfitDye2 = 0;
+        if (dye && options!.DyeMode is RandomDyeMode.SameColor)
+        {
+            outfitDye1 = stains[options.Random.Next(stains.Count)];
+            outfitDye2 = stains[options.Random.Next(stains.Count)];
+        }
+
         foreach (var (slot, itemId) in outfit.Slots)
-            equipment[slot] = new JsonObject { ["ItemId"] = itemId, ["Apply"] = true };
+        {
+            var entry = new JsonObject { ["ItemId"] = itemId, ["Apply"] = true };
+            if (dye)
+            {
+                var perPiece = options!.DyeMode is RandomDyeMode.PerPiece;
+                entry["Stain"]  = perPiece ? stains[options.Random.Next(stains.Count)] : outfitDye1;
+                entry["Stain2"] = options.DyeSecondChannel ? perPiece ? stains[options.Random.Next(stains.Count)] : outfitDye2 : (byte)0;
+                entry["ApplyStain"] = true;
+            }
+
+            equipment[slot] = entry;
+        }
+
+        if (options is not null)
+        {
+            foreach (var slot in options.ClearSlots)
+            {
+                if (!ClearableSlots.Contains(slot) || outfit.Slots.ContainsKey(slot))
+                    continue;
+
+                equipment[slot] = new JsonObject { ["ItemId"] = NothingItemId(slot), ["Apply"] = true, ["Stain"] = (byte)0, ["Stain2"] = (byte)0, ["ApplyStain"] = true };
+            }
+        }
 
         // Round-trip so values behave exactly like data parsed from Glamourer.
         var design = new JsonObject { ["FileVersion"] = EquipmentScopeFilter.SupportedStateFileVersion, ["Equipment"] = equipment };

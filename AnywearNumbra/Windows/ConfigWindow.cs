@@ -216,6 +216,31 @@ public sealed class ConfigWindow : Window
         IntInput("Minimum armor pieces per mod", Settings.MinimumModPieces, 1, v => Settings.MinimumModPieces = v);
         Help("Mods that change fewer slots than this (for example a single ring) are never picked.");
 
+        ImGui.TextUnformatted("When the new mod doesn't include a slot, remove the old item from:");
+        Checkbox("Head", Settings.ModClearHead, v => Settings.ModClearHead = v);
+        ImGui.SameLine();
+        Checkbox("Gloves", Settings.ModClearHands, v => Settings.ModClearHands = v);
+        ImGui.SameLine();
+        Checkbox("Earrings", Settings.ModClearEars, v => Settings.ModClearEars = v);
+        ImGui.SameLine();
+        Checkbox("Necklace", Settings.ModClearNeck, v => Settings.ModClearNeck = v);
+        ImGui.SameLine();
+        Checkbox("Bracelets", Settings.ModClearWrists, v => Settings.ModClearWrists = v);
+        ImGui.SameLine();
+        Checkbox("Rings", Settings.ModClearRings, v => Settings.ModClearRings = v);
+        Help("Ticked slots are left empty if the picked mod has nothing for them. Unticked slots keep whatever you were wearing. "
+          + "Body, legs and feet are never emptied.");
+
+        ImGui.SetNextItemWidth(260);
+        EnumCombo("Random dyes", Settings.ModDyeMode, v => Settings.ModDyeMode = v, DyeLabel);
+        if (Settings.ModDyeMode is not RandomDyeMode.Off)
+        {
+            ImGui.SameLine();
+            Checkbox("Also dye the second channel", Settings.ModDyeSecondChannel, v => Settings.ModDyeSecondChannel = v);
+        }
+
+        Help("Off keeps the dyes you already have. Items that can't be dyed ignore it. 'Reapply current outfit' keeps the same colors.");
+
         var outfits = Controller.ModOutfits;
         if (outfits.Count == 0)
             return;
@@ -718,6 +743,15 @@ public sealed class ConfigWindow : Window
             SelectionMode.ZoneRules => "C - Zone-specific rules",
             SelectionMode.Fixed     => "D - Fixed design",
             SelectionMode.PenumbraMods => "E - Random Penumbra mod outfit",
+            _                       => mode.ToString(),
+        };
+
+    private static string DyeLabel(RandomDyeMode mode)
+        => mode switch
+        {
+            RandomDyeMode.Off       => "Off (keep current dyes)",
+            RandomDyeMode.SameColor => "One random color for the outfit",
+            RandomDyeMode.PerPiece  => "Different random color per piece",
             _                       => mode.ToString(),
         };
 

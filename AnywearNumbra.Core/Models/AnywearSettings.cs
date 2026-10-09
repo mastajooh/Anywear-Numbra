@@ -19,6 +19,19 @@ public enum SelectionMode
     PenumbraMods = 4,
 }
 
+/// <summary> Random dye behavior for Penumbra mod outfits. </summary>
+public enum RandomDyeMode
+{
+    /// <summary> Keep the dyes you are already wearing. </summary>
+    Off = 0,
+
+    /// <summary> One random color on every piece of the outfit. </summary>
+    SameColor = 1,
+
+    /// <summary> A different random color on each piece. </summary>
+    PerPiece = 2,
+}
+
 /// <summary> A Glamourer design known to the plugin, keyed by its stable GUID. </summary>
 public sealed class OutfitEntry
 {
@@ -112,6 +125,21 @@ public sealed class AnywearSettings
 
     /// <summary> Only mods that change at least this many armor slots are picked. </summary>
     public int MinimumModPieces { get; set; } = 1;
+
+    // Slots emptied when the picked mod does not change them (so the previous outfit's pieces don't linger).
+    // Separate bools rather than a list: Dalamud's JSON loader appends to list defaults instead of replacing them.
+    public bool ModClearHead { get; set; } = true;
+    public bool ModClearHands { get; set; }
+    public bool ModClearEars { get; set; } = true;
+    public bool ModClearNeck { get; set; } = true;
+    public bool ModClearWrists { get; set; } = true;
+    public bool ModClearRings { get; set; } = true;
+
+    /// <summary> Random dyes for Mode E outfits. </summary>
+    public RandomDyeMode ModDyeMode { get; set; } = RandomDyeMode.Off;
+
+    /// <summary> Also give the second dye channel a random color. </summary>
+    public bool ModDyeSecondChannel { get; set; } = true;
 
     /// <summary> Directory of the mod applied last in Mode E, or empty when the last outfit was a Glamourer design. </summary>
     public string LastAppliedModDirectory { get; set; } = string.Empty;

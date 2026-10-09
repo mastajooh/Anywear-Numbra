@@ -122,4 +122,93 @@ public class ModOutfitTests
         Assert.NotNull(s.ExcludedModDirectories);
         Assert.Equal(string.Empty, s.LastAppliedModDirectory);
     }
+
+    private sealed class SequenceRandom(params int[] values) : IRandomSource
+    {
+        private int _i;
+
+        public int Next(int maxExclusive)
+            => values[_i++ % values.Length] % maxExclusive;
+    }
+
+    [Fact]
+    public void NothingItemIds_MatchGlamourersFormula()
+    {
+        Assert.Equal(4294967164UL, ModOutfitBuilder.NothingItemId("Head"));
+        Assert.Equal(4294967162UL, ModOutfitBuilder.NothingItemId("Hands"));
+        Assert.Equal(4294967158UL, ModOutfitBuilder.NothingItemId("Ears"));
+        Assert.Equal(4294967157UL, ModOutfitBuilder.NothingItemId("Neck"));
+        Assert.Equal(4294967156UL, ModOutfitBuilder.NothingItemId("Wrists"));
+        Assert.Equal(4294967155UL, ModOutfitBuilder.NothingItemId("RFinger"));
+        Assert.Equal(4294967155UL, ModOutfitBuilder.NothingItemId("LFinger"));
+    }
+
+    [Fact]
+    public void MissingAccessories_AreEmptied_WhenTicked_AndLeftAloneOtherwise()
+    {
+        var current  = Build(seed: 2);
+        var outfit   = ModOutfitBuilder.Build("dir", "Name", new[] { ("Body", 777UL), ("Hands", 778UL), ("Finger", 779UL) });
+        var settings = new AnywearSettings(); // defaults: head, ears, neck, wrists, rings; not hands
+        var options  = ModDesignOptions.FromSettings(settings, [], new SequenceRandom(0));
+        var merged   = EquipmentScopeFilter.Merge(current, ModOutfitBuilder.ToDesign(outfit, options), ScopeOptions.EquipmentOnly).State!;
+
+        foreach (var slot in new[] { "Head", "Ears", "Neck", "Wrists", "LFinger" })
+        {
+            Assert.Equal(ModOutfitBuilder.NothingItemId(slot).ToString(), Slot(merged, slot)["ItemId"]!.ToJsonString());
+            Assert.True(Bool(Slot(merged, slot), "Apply"));
+        }
+
+        Assert.Equal("779", Slot(merged, "RFinger")["ItemId"]!.ToJsonString()); // the mod's ring stays
+        Assert.Equal("778", Slot(merged, "Hands")["ItemId"]!.ToJsonString());
+
+        // Legs and feet are never emptied: unchanged and unmarked.
+        foreach (var slot in new[] { "Legs", "Feet" })
+        {
+            Assert.Equal(ValuesOnly(Slot(current, slot)), ValuesOnly(Slot(merged, slot)));
+            Assert.False(Bool(Slot(merged, slot), "Apply"));
+        }
+
+        // With nothing ticked, missing slots keep what you wear.
+        settings.ModClearHead = settings.ModClearEars = settings.ModClearNeck = settings.ModClearWrists = settings.ModClearRings = false;
+        var keep = EquipmentScopeFilter.Merge(current,
+            ModOutfitBuilder.ToDesign(outfit, ModDesignOptions.FromSettings(settings, [], new SequenceRandom(0))), ScopeOptions.EquipmentOnly).State!;
+        Assert.Equal(ValuesOnly(Slot(current, "Head")), ValuesOnly(Slot(keep, "Head")));
+        Assert.False(Bool(Slot(keep, "Head"), "Apply"));
+    }
+
+    [Fact]
+    public void RandomDyes_SameColor_UsesOneColorForEveryPiece()
+    {
+        var outfit  = ModOutfitBuilder.Build("dir", "Name", new[] { ("Body", 1UL), ("Legs", 2UL), ("Feet", 3UL) });
+        var options = new ModDesignOptions([], RandomDyeMode.SameColor, true, new byte[] { 5, 6, 7, 8 }, new SequenceRandom(1, 3));
+        var design  = ModOutfitBuilder.ToDesign(outfit, options);
+
+        foreach (var slot in new[] { "Body", "Legs", "Feet" })
+        {
+            Assert.Equal("6", Slot(design, slot)["Stain"]!.ToJsonString());
+            Assert.Equal("8", Slot(design, slot)["Stain2"]!.ToJsonString());
+            Assert.True(Bool(Slot(design, slot), "ApplyStain"));
+        }
+    }
+
+    [Fact]
+    public void RandomDyes_PerPiece_DiffersPerPiece_AndSecondChannelCanStayEmpty()
+    {
+        var outfit  = ModOutfitBuilder.Build("dir", "Name", new[] { ("Body", 1UL), ("Legs", 2UL) });
+        var options = new ModDesignOptions([], RandomDyeMode.PerPiece, false, new byte[] { 5, 6, 7 }, new SequenceRandom(0, 1, 2));
+        var design  = ModOutfitBuilder.ToDesign(outfit, options);
+
+        var dyes = new[] { "Body", "Legs" }.Select(slot => Slot(design, slot)["Stain"]!.ToJsonString()).ToList();
+        Assert.NotEqual(dyes[0], dyes[1]);
+        Assert.Equal("0", Slot(design, "Body")["Stain2"]!.ToJsonString());
+    }
+
+    [Fact]
+    public void RandomDyes_Off_LeavesDyesAlone()
+    {
+        var outfit = ModOutfitBuilder.Build("dir", "Name", new[] { ("Body", 1UL) });
+        var design = ModOutfitBuilder.ToDesign(outfit, new ModDesignOptions([], RandomDyeMode.Off, true, new byte[] { 5 }, new SequenceRandom(0)));
+        Assert.False(Slot(design, "Body").ContainsKey("Stain"));
+        Assert.False(Bool(Slot(design, "Body"), "ApplyStain"));
+    }
 }

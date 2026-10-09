@@ -92,6 +92,12 @@ public static class SettingsMigrator
             }
         }
 
+        if (!Enum.IsDefined(s.ModDyeMode))
+        {
+            s.ModDyeMode = RandomDyeMode.Off;
+            changed      = true;
+        }
+
         if (!Enum.IsDefined(s.Mode))
         {
             s.Mode = SelectionMode.Random;
