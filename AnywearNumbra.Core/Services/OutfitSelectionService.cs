@@ -54,6 +54,7 @@ public static class OutfitSelectionService
             SelectionMode.Rotation  => SelectRotation(settings, available),
             SelectionMode.ZoneRules => SelectByRules(settings, available, territory),
             SelectionMode.Fixed     => SelectFixed(settings, available),
+            SelectionMode.PenumbraMods => SelectionResult.None("Mode E picks Penumbra mods, not Glamourer designs."),
             _                       => SelectionResult.None($"Unknown selection mode {settings.Mode}."),
         };
 

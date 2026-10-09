@@ -23,6 +23,7 @@ public sealed class ConfigWindow : Window
     private Guid _manualDesign;
     private string _designFilter = string.Empty;
     private string _territoryFilter = string.Empty;
+    private string _modFilter = string.Empty;
     private DateTime _resetArmedUntil = DateTime.MinValue;
 
     public ConfigWindow(AnywearNumbraPlugin plugin)
@@ -101,6 +102,8 @@ public sealed class ConfigWindow : Window
             SelectionMode.Random   => "Random pick from eligible designs; never the same design twice in a row when two or more are eligible.",
             SelectionMode.Rotation => "Cycles through eligible designs in the order of the Outfits list. Position is remembered across restarts.",
             SelectionMode.ZoneRules => "Uses the rules in the Outfits tab: exact territory > duty type > category > fallback.",
+            SelectionMode.PenumbraMods => "Picks a random ENABLED Penumbra mod that changes armor and wears every armor piece it changes. "
+              + "Manage the list under 'Penumbra mod outfits' in the Outfits tab. Glamourer designs are not used in this mode.",
             _                      => "Always applies the fixed design chosen in the Outfits tab.",
         });
 
@@ -149,7 +152,7 @@ public sealed class ConfigWindow : Window
 
     private void DrawOutfits()
     {
-        ImGui.TextUnformatted($"Last applied: {(Settings.LastAppliedDesignId == Guid.Empty ? "nothing yet" : Controller.DesignName(Settings.LastAppliedDesignId))}");
+        ImGui.TextUnformatted($"Last applied: {Controller.LastAppliedLabel}");
         if (Settings.LastAppliedAtUtc is { } at)
         {
             ImGui.SameLine();
@@ -194,6 +197,81 @@ public sealed class ConfigWindow : Window
         ImGui.TextUnformatted("Zone rules (Mode C)");
         ImGui.Separator();
         DrawRules();
+
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Penumbra mod outfits (Mode E)");
+        ImGui.Separator();
+        DrawModOutfits();
+    }
+
+    private void DrawModOutfits()
+    {
+        Help("Enabled mods in your character's Penumbra collection that change armor. Each pick wears every armor piece "
+          + "that mod changes; other slots, dyes, hair, face and body stay as they are. Untick a mod to skip it.");
+        if (ImGui.Button("Scan Penumbra mods"))
+            _plugin.RunOnFramework(() => Controller.RescanMods());
+        ImGui.SameLine();
+        ImGui.TextColored(Muted, Controller.ModsScannedAt is { } at ? $"{Controller.ModScanMessage} ({at:T})" : Controller.ModScanMessage);
+
+        IntInput("Minimum armor pieces per mod", Settings.MinimumModPieces, 1, v => Settings.MinimumModPieces = v);
+        Help("Mods that change fewer slots than this (for example a single ring) are never picked.");
+
+        var outfits = Controller.ModOutfits;
+        if (outfits.Count == 0)
+            return;
+
+        ImGui.SetNextItemWidth(260);
+        ImGui.InputText("Filter##modFilter", ref _modFilter, 128);
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Tick all"))
+            Save(() => Settings.ExcludedModDirectories.Clear());
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Untick all"))
+            Save(() =>
+            {
+                Settings.ExcludedModDirectories.Clear();
+                Settings.ExcludedModDirectories.AddRange(outfits.Select(o => o.ModDirectory));
+            });
+
+        var tableHeight = Math.Min(300f, 30f + 26f * outfits.Count);
+        if (!ImGui.BeginTable("##modOutfits", 3, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY,
+                new Vector2(0, tableHeight)))
+            return;
+
+        ImGui.TableSetupColumn("Use", ImGuiTableColumnFlags.WidthFixed, 40);
+        ImGui.TableSetupColumn("Mod", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableSetupColumn("Slots", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableHeadersRow();
+
+        foreach (var outfit in outfits)
+        {
+            if (_modFilter.Length > 0 && !outfit.ModName.Contains(_modFilter, StringComparison.CurrentCultureIgnoreCase))
+                continue;
+
+            ImGui.PushID(outfit.ModDirectory);
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            var used = !Settings.ExcludedModDirectories.Contains(outfit.ModDirectory);
+            if (ImGui.Checkbox("##useMod", ref used))
+                Save(() =>
+                {
+                    Settings.ExcludedModDirectories.Remove(outfit.ModDirectory);
+                    if (!used)
+                        Settings.ExcludedModDirectories.Add(outfit.ModDirectory);
+                });
+
+            ImGui.TableNextColumn();
+            if (outfit.PieceCount < Settings.MinimumModPieces)
+                ImGui.TextColored(Muted, outfit.ModName);
+            else
+                ImGui.TextUnformatted(outfit.ModName);
+
+            ImGui.TableNextColumn();
+            ImGui.TextColored(Muted, string.Join(", ", outfit.Slots.Keys));
+            ImGui.PopID();
+        }
+
+        ImGui.EndTable();
     }
 
     private void DrawOutfitTable()
@@ -488,10 +566,13 @@ public sealed class ConfigWindow : Window
             _plugin.RunOnFramework(() => Controller.ApplyNow(id));
         }
 
-        if (ImGui.Button("Reapply current design"))
+        if (ImGui.Button("Apply random Penumbra mod outfit now"))
+            _plugin.RunOnFramework(Controller.ApplyRandomModNow);
+
+        if (ImGui.Button("Reapply current outfit"))
             _plugin.RunOnFramework(Controller.ReapplyCurrent);
         ImGui.SameLine();
-        ImGui.TextColored(Muted, Settings.LastAppliedDesignId == Guid.Empty ? "(nothing applied yet)" : Controller.DesignName(Settings.LastAppliedDesignId));
+        ImGui.TextColored(Muted, Controller.LastAppliedLabel);
 
         if (ImGui.Button("Refresh designs"))
             _plugin.RunOnFramework(() => Controller.RefreshDesigns());
@@ -636,6 +717,7 @@ public sealed class ConfigWindow : Window
             SelectionMode.Rotation  => "B - Sequential rotation",
             SelectionMode.ZoneRules => "C - Zone-specific rules",
             SelectionMode.Fixed     => "D - Fixed design",
+            SelectionMode.PenumbraMods => "E - Random Penumbra mod outfit",
             _                       => mode.ToString(),
         };
 

@@ -14,6 +14,9 @@ public enum SelectionMode
 
     /// <summary> Mode D: always the same design. </summary>
     Fixed = 3,
+
+    /// <summary> Mode E: a random enabled Penumbra mod that changes armor; all armor pieces it changes are worn. </summary>
+    PenumbraMods = 4,
 }
 
 /// <summary> A Glamourer design known to the plugin, keyed by its stable GUID. </summary>
@@ -101,6 +104,17 @@ public sealed class AnywearSettings
     public Guid FixedDesignId { get; set; }
     public Guid FallbackDesignId { get; set; }
     public List<TerritoryRule> Rules { get; set; } = new();
+
+    // ---- Penumbra mod outfits (Mode E) ------------------------------------------
+
+    /// <summary> Mod directories the user unticked; they are never picked in Mode E. </summary>
+    public List<string> ExcludedModDirectories { get; set; } = new();
+
+    /// <summary> Only mods that change at least this many armor slots are picked. </summary>
+    public int MinimumModPieces { get; set; } = 1;
+
+    /// <summary> Directory of the mod applied last in Mode E, or empty when the last outfit was a Glamourer design. </summary>
+    public string LastAppliedModDirectory { get; set; } = string.Empty;
 
     // ---- Persisted runtime state -------------------------------------------------
 

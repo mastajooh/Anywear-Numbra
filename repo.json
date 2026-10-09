@@ -3,16 +3,16 @@
     "Author": "mastajooh",
     "Name": "Anywear Numbra",
     "InternalName": "AnywearNumbra",
-    "Punchline": "Changes your outfit (equipment only) from your Glamourer designs when you change zones or enter duties.",
-    "Description": "Applies the equipment portion of your saved Glamourer designs to your own character after zone changes, teleports and duty entry. Hair, face, skin, body, identity and visual effects are never changed. Weapons, facewear and hat/visor visibility are opt-in. Requires Glamourer; Penumbra is optional.",
+    "Punchline": "Changes your outfit (equipment only) from Glamourer designs or Penumbra mods when you change zones or enter duties.",
+    "Description": "Applies the equipment portion of your saved Glamourer designs to your own character after zone changes, teleports and duty entry. Hair, face, skin, body, identity and visual effects are never changed. Can also pick a random enabled Penumbra mod and wear the armor it changes. Requires Glamourer; Penumbra is needed for mod outfits.",
     "Tags": [ "Glamourer", "Penumbra", "Outfit", "Glamour", "Appearance", "Automation" ],
-    "AssemblyVersion": "0.1.0.0",
+    "AssemblyVersion": "0.2.0.0",
     "RepoUrl": "https://github.com/mastajooh/Anywear-Numbra",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
-    "DownloadLinkInstall": "https://github.com/mastajooh/Anywear-Numbra/releases/download/0.1.0.0/AnywearNumbra.zip",
-    "DownloadLinkUpdate": "https://github.com/mastajooh/Anywear-Numbra/releases/download/0.1.0.0/AnywearNumbra.zip",
-    "DownloadLinkTesting": "https://github.com/mastajooh/Anywear-Numbra/releases/download/0.1.0.0/AnywearNumbra.zip",
+    "DownloadLinkInstall": "https://github.com/mastajooh/Anywear-Numbra/releases/download/0.2.0.0/AnywearNumbra.zip",
+    "DownloadLinkUpdate": "https://github.com/mastajooh/Anywear-Numbra/releases/download/0.2.0.0/AnywearNumbra.zip",
+    "DownloadLinkTesting": "https://github.com/mastajooh/Anywear-Numbra/releases/download/0.2.0.0/AnywearNumbra.zip",
     "IconUrl": "https://raw.githubusercontent.com/mastajooh/Anywear-Numbra/main/images/icon.png"
   }
 ]

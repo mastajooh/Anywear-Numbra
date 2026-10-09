@@ -13,6 +13,7 @@ public static class SettingsMigrator
     public const int MaxLockSeconds = 300;
     public const int MinVerifyDelayMs = 1_000;
     public const int MaxVerifyDelayMs = 30_000;
+    public const int MaxModPieces = 10;
 
     /// <summary> Bring <paramref name="settings"/> to <see cref="AnywearSettings.CurrentVersion"/>. </summary>
     /// <returns> True if anything changed and the settings should be saved. </returns>
@@ -50,7 +51,15 @@ public static class SettingsMigrator
             changed = true;
         }
 
-        s.LastAppliedDesignName ??= string.Empty;
+        s.LastAppliedDesignName   ??= string.Empty;
+        s.LastAppliedModDirectory ??= string.Empty;
+        if (s.ExcludedModDirectories is null)
+        {
+            s.ExcludedModDirectories = new List<string>();
+            changed = true;
+        }
+
+        changed |= Clamp(s.MinimumModPieces, 1, MaxModPieces, v => s.MinimumModPieces = v);
 
         // Drop null entries, empty GUIDs and duplicates (first occurrence wins, preserving user order).
         var seen = new HashSet<Guid>();

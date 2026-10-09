@@ -14,6 +14,7 @@ It only affects your local character. It does not change other players, server-s
   - **B – Rotation:** follows the Outfits list order; position survives restarts.
   - **C – Zone rules:** exact territory > duty type > category > fallback; ties go to the rule higher in the list.
   - **D – Fixed:** the same design every time.
+  - **E – Random Penumbra mod outfit:** picks a random mod that is enabled in your character's Penumbra collection and changes armor, and wears every armor piece it changes (one item per slot; dyes, weapons and facewear untouched). Untick mods or set a minimum piece count in the Outfits tab. Uses the same equipment-only path as designs.
 - Designs are tracked by Glamourer GUID: renames keep settings, deleted designs show as *missing* and are skipped.
 - Manual actions: apply now, reapply current, refresh designs, test connectivity, release lock, reset configuration.
 - Glamourer Automation conflict detection (post-apply re-check).
@@ -25,7 +26,7 @@ It only affects your local character. It does not change other players, server-s
 |---|---|---|
 | Dalamud (API 15) | yes | plugin host |
 | Glamourer (IPC API 1.x) | yes | reading designs/state, applying equipment |
-| Penumbra (IPC API 5.x) | no | read-only status. Never modified. |
+| Penumbra (IPC API 5.x) | for Mode E | read-only: status, mod list, changed items, enabled state. Never modified. |
 
 ## Build
 

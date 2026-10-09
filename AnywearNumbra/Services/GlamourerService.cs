@@ -209,7 +209,7 @@ public sealed class GlamourerService : IDisposable
     /// in which only permitted equipment fields are marked as applied, and sends that to Glamourer.ApplyState.
     /// Must be called on the framework thread.
     /// </summary>
-    public GlamourerApplyResult ApplyEquipmentScoped(Guid designId, int objectIndex, ScopeOptions scope, bool lockState)
+    public GlamourerApplyResult ApplyEquipmentScoped(OutfitSource source, int objectIndex, ScopeOptions scope, bool lockState)
     {
         if (!IsAvailable && !CheckAvailability())
             return _status.Path is ApplicationPath.C
@@ -218,10 +218,20 @@ public sealed class GlamourerService : IDisposable
 
         try
         {
-            // 1. The design's data (read-only).
-            var designJObject = _getDesignJObject.InvokeFunc(designId);
-            if (designJObject is null)
-                return GlamourerApplyResult.Fail("The design no longer exists in Glamourer.");
+            // 1. The design's data (read-only): a Glamourer design by GUID, or a Penumbra mod outfit built in code.
+            JsonObject? design;
+            if (source.Data is { } data)
+            {
+                design = (JsonObject)data.DeepClone();
+            }
+            else
+            {
+                var designJObject = _getDesignJObject.InvokeFunc(source.DesignId);
+                if (designJObject is null)
+                    return GlamourerApplyResult.Fail("The design no longer exists in Glamourer.");
+
+                design = ToJsonObject(designJObject);
+            }
 
             // 2. The actor's current state (read-only). Our key lets us read a state we locked ourselves.
             var (stateCode, stateJObject) = _getState.InvokeFunc(objectIndex, LockKey);
@@ -238,7 +248,7 @@ public sealed class GlamourerService : IDisposable
             // 3. Build the equipment-only state (pure, unit-tested).
             if (ToJsonObject(stateJObject!) is not { } current)
                 return GlamourerApplyResult.Fail("Could not read the current Glamourer state.");
-            if (ToJsonObject(designJObject) is not { } design)
+            if (design is null)
                 return GlamourerApplyResult.Fail("Could not read the design data.");
 
             var merge = EquipmentScopeFilter.Merge(current, design, scope);

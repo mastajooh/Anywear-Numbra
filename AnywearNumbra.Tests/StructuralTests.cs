@@ -91,7 +91,8 @@ public partial class StructuralTests
             "Glamourer.ApiVersion.V2", "Glamourer.Initialized", "Glamourer.Disposed", "Glamourer.GetDesignList.V2",
             "Glamourer.GetDesignJObject", "Glamourer.GetState", "Glamourer.ApplyState", "Glamourer.UnlockAll",
             "Penumbra.ApiVersion.V5", "Penumbra.Initialized", "Penumbra.Disposed", "Penumbra.GetEnabledState",
-            "Penumbra.GetCollectionForObject.V5",
+            "Penumbra.GetCollectionForObject.V5", "Penumbra.GetModList", "Penumbra.GetChangedItems.V5",
+            "Penumbra.GetCurrentModSettings.V5",
         };
 
         foreach (var (file, text) in Sources("AnywearNumbra", "AnywearNumbra.Core"))

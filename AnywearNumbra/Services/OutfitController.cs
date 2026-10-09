@@ -50,6 +50,57 @@ public sealed class OutfitController : IDisposable
 
     public IReadOnlySet<Guid> AvailableDesigns { get; private set; } = new HashSet<Guid>();
 
+    /// <summary> Mode E: enabled mods that change armor, from the last scan. </summary>
+    public IReadOnlyList<ModOutfit> ModOutfits { get; private set; } = [];
+
+    public DateTime? ModsScannedAt { get; private set; }
+
+    public string ModScanMessage { get; private set; } = "Not scanned yet.";
+
+    /// <summary> How long a mod scan is reused before Mode E scans again on its own. </summary>
+    private static readonly TimeSpan ModScanMaxAge = TimeSpan.FromMinutes(10);
+
+    /// <summary> Scan Penumbra for enabled mods that change armor. Framework thread. </summary>
+    public bool RescanMods()
+    {
+        if (LocalPlayerIndex() is not { } objectIndex)
+        {
+            ModScanMessage = "Your character is not available right now.";
+            return false;
+        }
+
+        var (outfits, message) = _penumbra.ScanModOutfits(objectIndex);
+        ModOutfits     = outfits;
+        ModsScannedAt  = DateTime.Now;
+        ModScanMessage = message;
+        _log.Information($"[Mods] {message}");
+        return outfits.Count > 0;
+    }
+
+    /// <summary> Manual: apply a random mod outfit now (Mode E's pick), regardless of the selected mode. </summary>
+    public void ApplyRandomModNow()
+        => ApplyRandomMod("Manual random mod");
+
+    /// <summary> Display text for whatever was applied last (design or mod). </summary>
+    public string LastAppliedLabel
+        => Settings.LastAppliedModDirectory.Length > 0
+            ? $"{Settings.LastAppliedDesignName} (Penumbra mod)"
+            : Settings.LastAppliedDesignId == Guid.Empty
+                ? "nothing yet"
+                : DesignName(Settings.LastAppliedDesignId);
+
+    private (ApplyOutcome Outcome, string Detail) ApplyRandomMod(string trigger)
+    {
+        if (ModsScannedAt is not { } scanned || DateTime.Now - scanned > ModScanMaxAge || ModOutfits.Count == 0)
+            RescanMods();
+
+        var (outfit, reason) = ModOutfitBuilder.SelectRandom(ModOutfits, Settings, _random);
+        if (outfit is null)
+            return Report(false, $"No mod outfit applied: {reason}");
+
+        return ApplyOutfit(OutfitSource.FromMod(outfit), $"{trigger} — {reason}", outfit.ModDirectory);
+    }
+
     /// <summary> Reload designs from Glamourer and add newly found ones (not eligible) to the outfit list. </summary>
     public bool RefreshDesigns()
     {
@@ -109,6 +160,9 @@ public sealed class OutfitController : IDisposable
             RefreshDesigns();
 
         var territory = _territories.Get(transition.TerritoryId);
+        if (Settings.Mode is SelectionMode.PenumbraMods)
+            return ApplyRandomMod($"{transition.Kind} to {territory.Name}");
+
         var selection = OutfitSelectionService.Select(Settings, AvailableDesigns, territory, _random);
         if (!selection.HasDesign)
         {
@@ -136,6 +190,18 @@ public sealed class OutfitController : IDisposable
     /// <summary> Manual: reapply the last successfully applied design. </summary>
     public void ReapplyCurrent()
     {
+        if (Settings.LastAppliedModDirectory.Length > 0)
+        {
+            if (ModOutfits.Count == 0)
+                RescanMods();
+            var mod = ModOutfits.FirstOrDefault(o => o.ModDirectory == Settings.LastAppliedModDirectory);
+            if (mod is null)
+                Report(false, $"The mod '{Settings.LastAppliedDesignName}' is no longer enabled or no longer changes armor.");
+            else
+                ApplyOutfit(OutfitSource.FromMod(mod), "Manual reapply", mod.ModDirectory);
+            return;
+        }
+
         if (Settings.LastAppliedDesignId == Guid.Empty)
         {
             Report(false, "Nothing has been applied yet, so there is nothing to reapply.");
@@ -183,15 +249,18 @@ public sealed class OutfitController : IDisposable
 
     // ------------------------------------------------------------------------------------------------
 
-    /// <summary> The one place that asks Glamourer to change appearance. </summary>
     private (ApplyOutcome Outcome, string Detail) ApplyDesign(Guid designId, string trigger)
+        => ApplyOutfit(OutfitSource.FromDesign(designId, DesignName(designId)), trigger, null);
+
+    /// <summary> The one place that asks Glamourer to change appearance (designs and mod outfits alike). </summary>
+    private (ApplyOutcome Outcome, string Detail) ApplyOutfit(OutfitSource source, string trigger, string? modDirectory)
     {
         if (LocalPlayerIndex() is not { } objectIndex)
             return Report(false, "Your character is not available right now.", ApplyOutcome.Retryable);
 
-        var name   = DesignName(designId);
+        var name   = source.Name;
         var scope  = ScopeOptions.FromSettings(Settings);
-        var result = _glamourer.ApplyEquipmentScoped(designId, objectIndex, scope, Settings.LockStateAfterApply);
+        var result = _glamourer.ApplyEquipmentScoped(source, objectIndex, scope, Settings.LockStateAfterApply);
         if (!result.Success)
         {
             var outcome = result.Retryable ? ApplyOutcome.Retryable : ApplyOutcome.Permanent;
@@ -200,9 +269,21 @@ public sealed class OutfitController : IDisposable
             return Report(false, $"'{name}' not applied ({trigger}): {result.Message}", outcome);
         }
 
-        if (AvailableDesigns.Count == 0)
-            AvailableDesigns = new HashSet<Guid>(_glamourer.Designs.Keys);
-        OutfitSelectionService.RecordApplied(Settings, designId, name, AvailableDesigns, DateTime.UtcNow);
+        if (modDirectory is not null)
+        {
+            Settings.LastAppliedModDirectory = modDirectory;
+            Settings.LastAppliedDesignId     = Guid.Empty;
+            Settings.LastAppliedDesignName   = name;
+            Settings.LastAppliedAtUtc        = DateTime.UtcNow;
+        }
+        else
+        {
+            if (AvailableDesigns.Count == 0)
+                AvailableDesigns = new HashSet<Guid>(_glamourer.Designs.Keys);
+            Settings.LastAppliedModDirectory = string.Empty;
+            OutfitSelectionService.RecordApplied(Settings, source.DesignId, name, AvailableDesigns, DateTime.UtcNow);
+        }
+
         _save();
 
         _status.LastAppliedFields = string.Join(", ", result.AppliedFields);
