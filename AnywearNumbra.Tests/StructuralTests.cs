@@ -112,7 +112,7 @@ public partial class StructuralTests
         {
             Assert.DoesNotContain("File.Read", text);
             Assert.DoesNotContain("File.Write", text);
-            Assert.DoesNotContain("Directory.", text);
+                        Assert.False(Regex.IsMatch(text, @"(?<![A-Za-z_])Directory\."), $"{file} uses System.IO.Directory.");
             Assert.False(text.Contains("pluginConfigs", StringComparison.OrdinalIgnoreCase), $"{file} references plugin config folders.");
         }
     }
