@@ -30,11 +30,19 @@ jobs:
       - name: Test
         run: dotnet test AnywearNumbra.Tests/AnywearNumbra.Tests.csproj -c Release
 
+      - name: Find plugin zip
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem -Path AnywearNumbra/bin -Recurse -Filter latest.zip | Select-Object -First 1
+          if (-not $zip) { Get-ChildItem -Path AnywearNumbra/bin -Recurse | Select-Object FullName; throw "latest.zip not found" }
+          Copy-Item $zip.FullName AnywearNumbra.zip
+          Write-Host "Found $($zip.FullName)"
+
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
           name: AnywearNumbra
-          path: AnywearNumbra/bin/x64/Release/AnywearNumbra/*
+          path: AnywearNumbra.zip
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/')
@@ -42,5 +50,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          Copy-Item AnywearNumbra/bin/x64/Release/AnywearNumbra/latest.zip AnywearNumbra.zip
           gh release create "${{ github.ref_name }}" AnywearNumbra.zip --title "${{ github.ref_name }}" --notes "Anywear Numbra ${{ github.ref_name }}"
