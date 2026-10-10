@@ -32,6 +32,10 @@ public sealed record ModDesignOptions(
             slots.Add("Head");
         if (s.ModClearHands)
             slots.Add("Hands");
+        if (s.ModClearLegs)
+            slots.Add("Legs");
+        if (s.ModClearFeet)
+            slots.Add("Feet");
         if (s.ModClearEars)
             slots.Add("Ears");
         if (s.ModClearNeck)
@@ -105,8 +109,11 @@ public static class ModOutfitBuilder
         return new ModOutfit(modDirectory, modName, slots);
     }
 
-    /// <summary> Slots that may be emptied when a mod does not change them. Body, legs and feet never are. </summary>
-    public static readonly IReadOnlyList<string> ClearableSlots = ["Head", "Hands", "Ears", "Neck", "Wrists", "RFinger", "LFinger"];
+    /// <summary>
+    /// Slots that may be emptied when a mod does not change them. The body slot never is. An empty legs or feet slot
+    /// shows the character's default smallclothes (bare legs / bare feet).
+    /// </summary>
+    public static readonly IReadOnlyList<string> ClearableSlots = ["Head", "Hands", "Legs", "Feet", "Ears", "Neck", "Wrists", "RFinger", "LFinger"];
 
     /// <summary>
     /// Glamourer's "Nothing" item for an armor slot: ItemManager.NothingId(slot) = uint.MaxValue - 128 - (uint)slot.ToSlot(),

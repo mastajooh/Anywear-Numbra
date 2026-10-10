@@ -221,6 +221,10 @@ public sealed class ConfigWindow : Window
         ImGui.SameLine();
         Checkbox("Gloves", Settings.ModClearHands, v => Settings.ModClearHands = v);
         ImGui.SameLine();
+        Checkbox("Pants", Settings.ModClearLegs, v => Settings.ModClearLegs = v);
+        ImGui.SameLine();
+        Checkbox("Shoes", Settings.ModClearFeet, v => Settings.ModClearFeet = v);
+        ImGui.SameLine();
         Checkbox("Earrings", Settings.ModClearEars, v => Settings.ModClearEars = v);
         ImGui.SameLine();
         Checkbox("Necklace", Settings.ModClearNeck, v => Settings.ModClearNeck = v);
@@ -229,7 +233,7 @@ public sealed class ConfigWindow : Window
         ImGui.SameLine();
         Checkbox("Rings", Settings.ModClearRings, v => Settings.ModClearRings = v);
         Help("Ticked slots are left empty if the picked mod has nothing for them. Unticked slots keep whatever you were wearing. "
-          + "Body, legs and feet are never emptied.");
+          + "Empty pants or shoes show your default smallclothes (bare legs / bare feet). The body slot is never emptied.");
 
         ImGui.SetNextItemWidth(260);
         EnumCombo("Random dyes", Settings.ModDyeMode, v => Settings.ModDyeMode = v, DyeLabel);

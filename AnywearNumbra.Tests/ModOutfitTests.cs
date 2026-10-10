@@ -136,6 +136,8 @@ public class ModOutfitTests
     {
         Assert.Equal(4294967164UL, ModOutfitBuilder.NothingItemId("Head"));
         Assert.Equal(4294967162UL, ModOutfitBuilder.NothingItemId("Hands"));
+        Assert.Equal(4294967160UL, ModOutfitBuilder.NothingItemId("Legs"));
+        Assert.Equal(4294967159UL, ModOutfitBuilder.NothingItemId("Feet"));
         Assert.Equal(4294967158UL, ModOutfitBuilder.NothingItemId("Ears"));
         Assert.Equal(4294967157UL, ModOutfitBuilder.NothingItemId("Neck"));
         Assert.Equal(4294967156UL, ModOutfitBuilder.NothingItemId("Wrists"));
@@ -148,11 +150,11 @@ public class ModOutfitTests
     {
         var current  = Build(seed: 2);
         var outfit   = ModOutfitBuilder.Build("dir", "Name", new[] { ("Body", 777UL), ("Hands", 778UL), ("Finger", 779UL) });
-        var settings = new AnywearSettings(); // defaults: head, ears, neck, wrists, rings; not hands
+        var settings = new AnywearSettings(); // defaults: head, legs, feet, ears, neck, wrists, rings; not hands
         var options  = ModDesignOptions.FromSettings(settings, [], new SequenceRandom(0));
         var merged   = EquipmentScopeFilter.Merge(current, ModOutfitBuilder.ToDesign(outfit, options), ScopeOptions.EquipmentOnly).State!;
 
-        foreach (var slot in new[] { "Head", "Ears", "Neck", "Wrists", "LFinger" })
+        foreach (var slot in new[] { "Head", "Legs", "Feet", "Ears", "Neck", "Wrists", "LFinger" })
         {
             Assert.Equal(ModOutfitBuilder.NothingItemId(slot).ToString(), Slot(merged, slot)["ItemId"]!.ToJsonString());
             Assert.True(Bool(Slot(merged, slot), "Apply"));
@@ -161,19 +163,23 @@ public class ModOutfitTests
         Assert.Equal("779", Slot(merged, "RFinger")["ItemId"]!.ToJsonString()); // the mod's ring stays
         Assert.Equal("778", Slot(merged, "Hands")["ItemId"]!.ToJsonString());
 
-        // Legs and feet are never emptied: unchanged and unmarked.
-        foreach (var slot in new[] { "Legs", "Feet" })
-        {
-            Assert.Equal(ValuesOnly(Slot(current, slot)), ValuesOnly(Slot(merged, slot)));
-            Assert.False(Bool(Slot(merged, slot), "Apply"));
-        }
+        // The body slot is never emptied, even when the mod has no body piece.
+        var noBody = ModOutfitBuilder.Build("dir2", "NoBody", new[] { ("Feet", 900UL) });
+        var kept   = EquipmentScopeFilter.Merge(current, ModOutfitBuilder.ToDesign(noBody, options), ScopeOptions.EquipmentOnly).State!;
+        Assert.Equal(ValuesOnly(Slot(current, "Body")), ValuesOnly(Slot(kept, "Body")));
+        Assert.False(Bool(Slot(kept, "Body"), "Apply"));
+        Assert.Equal(ModOutfitBuilder.NothingItemId("Legs").ToString(), Slot(kept, "Legs")["ItemId"]!.ToJsonString()); // bare legs
 
         // With nothing ticked, missing slots keep what you wear.
         settings.ModClearHead = settings.ModClearEars = settings.ModClearNeck = settings.ModClearWrists = settings.ModClearRings = false;
+        settings.ModClearLegs = settings.ModClearFeet = false;
         var keep = EquipmentScopeFilter.Merge(current,
             ModOutfitBuilder.ToDesign(outfit, ModDesignOptions.FromSettings(settings, [], new SequenceRandom(0))), ScopeOptions.EquipmentOnly).State!;
-        Assert.Equal(ValuesOnly(Slot(current, "Head")), ValuesOnly(Slot(keep, "Head")));
-        Assert.False(Bool(Slot(keep, "Head"), "Apply"));
+        foreach (var slot in new[] { "Head", "Legs", "Feet" })
+        {
+            Assert.Equal(ValuesOnly(Slot(current, slot)), ValuesOnly(Slot(keep, slot)));
+            Assert.False(Bool(Slot(keep, slot), "Apply"));
+        }
     }
 
     [Fact]

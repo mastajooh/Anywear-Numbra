@@ -134,6 +134,8 @@ public sealed class AnywearSettings
     public bool ModClearNeck { get; set; } = true;
     public bool ModClearWrists { get; set; } = true;
     public bool ModClearRings { get; set; } = true;
+    public bool ModClearLegs { get; set; } = true;
+    public bool ModClearFeet { get; set; } = true;
 
     /// <summary> Random dyes for Mode E outfits. </summary>
     public RandomDyeMode ModDyeMode { get; set; } = RandomDyeMode.Off;

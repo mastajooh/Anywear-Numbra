@@ -2,7 +2,7 @@
 <!-- Dalamud.NET.Sdk 15.0.0 (Dalamud API 15, net10.0-windows, x64) - verified against goatcorp/Dalamud.NET.Sdk and goatcorp/SamplePlugin. -->
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.3.0.0</Version>
+    <Version>0.4.0.0</Version>
     <RootNamespace>AnywearNumbra</RootNamespace>
     <AssemblyName>AnywearNumbra</AssemblyName>
     <ImplicitUsings>enable</ImplicitUsings>
